@@ -1,0 +1,28 @@
+
+# Environment files
+.env
+
+# Sensitive files
+public/client_secret.json
+client_secret.json
+
+# Vendor directory
+vendor/
+
+# Node modules
+node_modules/
+
+# IDE and editor settings
+*.idea/
+*.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and temporary files
+*.log
+*.tmp
+*.cache
+
+# System files
+.DS_Store
+Thumbs.db
