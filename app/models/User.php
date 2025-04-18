@@ -47,7 +47,7 @@ class User extends Model
     }
 
     // Method to store a new blob if the field is empty
-    public function storeBlob($id, $email = null, $data)
+    public function storeBlob($id, $email, $data)
     {
         // Encode the array into JSON format
         $jsonData = json_encode($data);
