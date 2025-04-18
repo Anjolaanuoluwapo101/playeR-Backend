@@ -29,9 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-Router::get('/', function() {
-    echo $_ENV['SPOTIFY_CLIENT_ID'];
-});
+// Router::get('/', function() {
+//     echo $_ENV['SPOTIFY_CLIENT_ID'];
+// });
 
 Router::get('/spotify/login', function() {
     SpotifyController::login();
