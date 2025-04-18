@@ -1,8 +1,8 @@
 <?php
 require '../vendor/autoload.php';
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__."/../" ,".env");
-$dotenv->load();
+// $dotenv = Dotenv\Dotenv::createImmutable(__DIR__."/../" ,".env");
+// $dotenv->load();
 
 require '../core/Router.php';
 require '../app/controllers/PlayeRController.php';
