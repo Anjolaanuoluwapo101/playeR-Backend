@@ -8,14 +8,14 @@ require '../core/Router.php';
 require '../app/controllers/PlayeRController.php';
 require '../app/controllers/SpotifyController.php';
 require '../app/controllers/GoogleController.php';
-require '../app/controllers/GeminiController.php';
+// require '../app/controllers/GeminiController.php';
 require '../app/models/Model.php';
 require '../app/models/User.php';
 
 use app\Controllers\SpotifyController;
 use app\Controllers\GoogleController;
 use app\Controllers\PlayeRController;
-use app\Controllers\GeminiController;
+// use app\Controllers\GeminiController;
 
 header("Access-Control-Allow-Origin: http://localhost:8081"); // Allow all domains (Use specific domains in production)
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS"); // Allowed methods
