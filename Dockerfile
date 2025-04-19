@@ -20,9 +20,10 @@ RUN chown -R www-data:www-data /var/www/html
 
 # Input by Github CoPilot...
 RUN a2enmod rewrite
-RUN echo '<Directory /var/www/html/public>
-    AllowOverride All
-    Require all granted
+# Update Apache configuration to allow .htaccess overrides
+RUN echo '<Directory "/var/www/html/public">\n\
+    AllowOverride All\n\
+    Require all granted\n\
 </Directory>' >> /etc/apache2/apache2.conf
 
 # Install Composer

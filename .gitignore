@@ -20,6 +20,8 @@ node_modules/
 
 app/controllers/GeminiController.php
 public/.htaccess copy
+public/test.db
+public/test.php
 
 # Logs and temporary files
 *.log
