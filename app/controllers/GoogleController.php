@@ -40,14 +40,14 @@ class GoogleController
 
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     
-        // Store redirect URI dynamically
-        // $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
-        //     ? "http://localhost:8081/redirectYoutubeLogin?setCookie=playeRCookieYT"
-        //     : $_SERVER['REQUEST_URI'];
-
+        Store redirect URI dynamically
         $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
-            ? "/youtube/auth"
+            ? "http://localhost:8081/redirectYoutubeLogin?setCookie=playeRCookieYT"
             : $_SERVER['REQUEST_URI'];
+
+        // $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
+        //     ? "/youtube/auth"
+        //     : $_SERVER['REQUEST_URI'];
 
     
         header("Location: $authUrl");
@@ -91,7 +91,7 @@ class GoogleController
             unset($_SESSION['youtube_original_uri']);
             header('Location:' . $original_uri);
         } else {
-            header('Location:http://localhost:8081/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime='.$_SESSION['youtube_token_expiration']);
+            header('Location:https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime='.$_SESSION['youtube_token_expiration']);
         }
 
     }

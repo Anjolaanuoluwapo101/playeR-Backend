@@ -37,7 +37,7 @@ class SpotifyController
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
         $_SESSION['spotify_original_uri'] = ($path == '/spotify/login')
-            ? "http://localhost:8081/redirectSpotifyLogin?setCookie=playeRCookieSF&tokenTime=" . ($_SESSION['spotify_token_expiration'] ?? 0)
+            ? "https://player-frp1.onrender.com/redirectSpotifyLogin?setCookie=playeRCookieSF&tokenTime=" . ($_SESSION['spotify_token_expiration'] ?? 0)
             : $_SERVER['REQUEST_URI'];
 
         if (isset($_SESSION['spotify_access_token'], $_SESSION['spotify_refresh_token'], $_SESSION['spotify_token_expiration'])) {
@@ -124,7 +124,7 @@ class SpotifyController
             unset($_SESSION['spotify_original_uri']);
             header('Location:' . $original_uri);
         } else {
-            header('Location:http://localhost:8081/redirectSpotifyLogin?setCookie=playeRCookieSF&tokenTime='.$_SESSION['spotify_token_expiration']);
+            header('Location:https://player-frp1.onrender.com/redirectSpotifyLogin?setCookie=playeRCookieSF&tokenTime='.$_SESSION['spotify_token_expiration']);
         }
 
     }
