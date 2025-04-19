@@ -42,7 +42,7 @@ class GoogleController
     
         // Store redirect URI dynamically
         $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
-            ? "https://player-backend-qz31.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT"
+            ? "https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT"
             : $_SERVER['REQUEST_URI'];
 
         // $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
