@@ -40,7 +40,7 @@ class GoogleController
 
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     
-        Store redirect URI dynamically
+        // Store redirect URI dynamically
         $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
             ? "http://localhost:8081/redirectYoutubeLogin?setCookie=playeRCookieYT"
             : $_SERVER['REQUEST_URI'];
