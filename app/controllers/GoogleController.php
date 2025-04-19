@@ -29,7 +29,7 @@ class GoogleController
     
         $params = [
             'client_id' => $_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID'],
-            'redirect_uri' => 'http://localhost:8000/youtube/login',
+            'redirect_uri' => 'https://player-backend-qz31.onrender.com/youtube/login',
             'response_type' => 'code',
             'scope' => 'https://www.googleapis.com/auth/youtube',
             'access_type' => 'offline',
@@ -62,13 +62,11 @@ class GoogleController
             die('Authorization code missing.');
         }
 
-        $clientSecret = $_ENV['GOOGLE_CLIENT_SECRET'] ?? $_SERVER['GOOGLE_CLIENT_SECRET'] ?? 'your-google-client-secret';
-
         $postData = [
             'code' => $_GET['code'],
-            'client_id' => getenv('GOOGLE_CLIENT_ID'),
-            'client_secret' => $clientSecret,
-            'redirect_uri' => 'http://localhost:8000/youtube/login',
+            'client_id' => $_ENV['GOOGLE_CLIENT_ID'],
+            'client_secret' =>  $_ENV['GOOGLE_CLIENT_SECRET'],
+            'redirect_uri' => 'https://player-backend-qz31.onrender.com/youtube/login',
             'grant_type' => 'authorization_code'
         ];
 
@@ -113,11 +111,9 @@ class GoogleController
             }
 
 
-            $clientSecret = $_ENV['GOOGLE_CLIENT_SECRET'] ?? $_SERVER['GOOGLE_CLIENT_SECRET'];
-
             $postData = [
-                'client_id' => $_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID'],
-                'client_secret' => $clientSecret,
+                'client_id' => $_ENV['GOOGLE_CLIENT_ID'] ,
+                'client_secret' =>  $_ENV['GOOGLE_CLIENT_SECRET'] ,
                 'refresh_token' => $_SESSION['youtube_refresh_token'],
                 'grant_type' => 'refresh_token',
             ];
@@ -137,7 +133,8 @@ class GoogleController
         }
 
         $client = new Google_Client();
-        $client->setAuthConfig($_SERVER['DOCUMENT_ROOT'] . '/client_secret.json');
+        // $client->setAuthConfig($_SERVER['DOCUMENT_ROOT'] . '/client_secret.json');
+        $client->setAuthConfig(`{"web":{"client_id":"`.$_ENV['GOOGLE_CLIENT_SECRET'].`","project_id":"playerr-449906","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"`.$_ENV['GOOGLE_CLIENT_ID'].`","javascript_origins":["http://localhost:8000","https://player-backend-qz31.onrender.com"]}}`);
         $client->setAccessToken($_SESSION['youtube_access_token']);
 
         return $client;

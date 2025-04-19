@@ -9,22 +9,17 @@ use SpotifyWebAPI\SpotifyWebAPIException;
 class SpotifyController
 {
 
-    public static $redirect_uri = "http://localhost:8000/spotify/get_user_access_token";
+    public static $redirect_uri = "https://player-backend-qz31.onrender.com/spotify/get_user_access_token";
     public static $token_url = "https://accounts.spotify.com/api/token";
     protected static $client_id;
     protected static $client_secret;
     protected static $scopes = "user-read-private user-read-email"; // Scopes needed for email & profile
 
-    public function __construct(){
-
-    }
-
-    //     //put this in a trait
     public static function startSession()
     {
         
-        self::$client_id = $_ENV['SPOTIFY_CLIENT_ID'] ?? $_SERVER['SPOTIFY_CLIENT_ID'] ?? 'your-spotify-client-id';
-        self::$client_secret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? $_SERVER['SPOTIFY_CLIENT_SECRET'] ?? 'your-spotify-client-secret';
+        self::$client_id = $_ENV['SPOTIFY_CLIENT_ID'] ;
+        self::$client_secret = $_ENV['SPOTIFY_CLIENT_SECRET'];
 
         if (session_status() === PHP_SESSION_NONE) {
             ini_set('session.gc_maxlifetime', 3600);

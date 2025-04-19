@@ -18,6 +18,9 @@ node_modules/
 *.sublime-project
 *.sublime-workspace
 
+app/controllers/GeminiController.php
+public/.htaccess copy
+
 # Logs and temporary files
 *.log
 *.tmp

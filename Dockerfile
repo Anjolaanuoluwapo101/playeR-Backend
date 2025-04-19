@@ -18,6 +18,13 @@ RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|' /et
 # Set proper permissions (optional)
 RUN chown -R www-data:www-data /var/www/html
 
+# Input by Github CoPilot...
+RUN a2enmod rewrite
+RUN echo '<Directory /var/www/html/public>
+    AllowOverride All
+    Require all granted
+</Directory>' >> /etc/apache2/apache2.conf
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
