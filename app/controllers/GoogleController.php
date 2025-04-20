@@ -18,7 +18,7 @@ class GoogleController
             ini_set('session.gc_maxlifetime', 3600);
             $session_lifetime = 3600; // 1 hour
             session_set_cookie_params($session_lifetime);
-            
+
             session_start();
         }
     }
@@ -26,7 +26,7 @@ class GoogleController
     public static function auth()
     {
         self::startSession();
-    
+
         $params = [
             'client_id' => $_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID'],
             'redirect_uri' => 'https://player-backend-qz31.onrender.com/youtube/login',
@@ -35,11 +35,11 @@ class GoogleController
             'access_type' => 'offline',
             'prompt' => 'consent'
         ];
-    
+
         $authUrl = "https://accounts.google.com/o/oauth2/auth?" . http_build_query($params);
 
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    
+
         // Store redirect URI dynamically
         $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
             ? "https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT"
@@ -49,7 +49,7 @@ class GoogleController
         //     ? "/youtube/auth"
         //     : $_SERVER['REQUEST_URI'];
 
-    
+
         header("Location: $authUrl");
         exit;
     }
@@ -78,22 +78,21 @@ class GoogleController
         $_SESSION['youtube_access_token'] = $response['access_token'];
         $_SESSION['youtube_token_expiration'] = time() + $response['expires_in'];
         // $_SESSION['youtube_token_expiration'] = time() + 3600;
-        
+
 
         if (!empty($response['refresh_token'])) {
             $_SESSION['youtube_refresh_token'] = $response['refresh_token'];
         }
 
-        
+
 
         if (isset($_SESSION['youtube_original_uri'])  && $_SESSION['youtube_original_uri'] != "/youtube/auth") {
             $original_uri = $_SESSION['youtube_original_uri'];
             unset($_SESSION['youtube_original_uri']);
             header('Location:' . $original_uri);
         } else {
-            header('Location:https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime='.$_SESSION['youtube_token_expiration']);
+            header('Location:https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime=' . $_SESSION['youtube_token_expiration']);
         }
-
     }
 
     public static function getUser()
@@ -112,8 +111,8 @@ class GoogleController
 
 
             $postData = [
-                'client_id' => $_ENV['GOOGLE_CLIENT_ID'] ,
-                'client_secret' =>  $_ENV['GOOGLE_CLIENT_SECRET'] ,
+                'client_id' => $_ENV['GOOGLE_CLIENT_ID'],
+                'client_secret' =>  $_ENV['GOOGLE_CLIENT_SECRET'],
                 'refresh_token' => $_SESSION['youtube_refresh_token'],
                 'grant_type' => 'refresh_token',
             ];
@@ -132,10 +131,28 @@ class GoogleController
             }
         }
 
+        // $client = new Google_Client();
+        // // $client->setAuthConfig($_SERVER['DOCUMENT_ROOT'] . '/client_secret.json');
+        // $client->setAuthConfig(`{"web":{"client_id":"","project_id":"playerr-449906","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"","javascript_origins":["http://localhost:8000","https://player-backend-qz31.onrender.com"]}}`);
+        // $client->setAccessToken($_SESSION['youtube_access_token']);
+
         $client = new Google_Client();
-        // $client->setAuthConfig($_SERVER['DOCUMENT_ROOT'] . '/client_secret.json');
-        $client->setAuthConfig(`{"web":{"client_id":"`.$_ENV['GOOGLE_CLIENT_SECRET'].`","project_id":"playerr-449906","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"`.$_ENV['GOOGLE_CLIENT_ID'].`","javascript_origins":["http://localhost:8000","https://player-backend-qz31.onrender.com"]}}`);
+
+        // Define the file path for the client secret JSON
+        $clientSecretFilePath = $_SERVER['DOCUMENT_ROOT'] . '/client_secret.json';
+
+        // Check if the file exists, and if not, create it
+        if (!file_exists($clientSecretFilePath)) {
+            $clientSecretJson = '{"web":{"client_id":"'.$_ENV['GOOGLE_CLIENT_ID'].'","project_id":"playerr-449906","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"'.$_ENV['GOOGLE_CLIENT_SECRET'].'","javascript_origins":["http://localhost:8000","https://player-backend-qz31.onrender.com"]}}';
+
+            // Write the JSON string to the file
+            file_put_contents($clientSecretFilePath, $clientSecretJson);
+        }
+
+        // Pass the file path to setAuthConfig
+        $client->setAuthConfig($clientSecretFilePath);
         $client->setAccessToken($_SESSION['youtube_access_token']);
+
 
         return $client;
     }
@@ -179,8 +196,8 @@ class GoogleController
 
 
 
-        
-    
+
+
 
 
     public static function isYoutubePlaylistLink($url)
@@ -259,7 +276,6 @@ class GoogleController
             }
 
             return $playlistData;
-
         } catch (Google_Service_Exception $e) {
             return 'Error: ' . $e->getMessage();
         } catch (\Exception $e) {
@@ -304,7 +320,6 @@ class GoogleController
 
             // Return the playlist ID
             return $playlistResponse->getId();
-
         } catch (Google_Service_Exception $e) {
             return 'Error: ' . $e->getMessage();
         } catch (\Exception $e) {
@@ -362,7 +377,7 @@ class GoogleController
                     'rate_limited' => $rateLimited,
                 ];
 
-                
+
                 sleep($rateLimitDelay); // Wait before the next request to avoid rate-limiting
             }
         }
@@ -387,8 +402,8 @@ class GoogleController
 
         $client = GoogleController::getUser();
         $youtube = new Google_Service_YouTube($client);
-        
-        
+
+
 
         foreach ($playlist as $item) {
             $track = $item['track'];
@@ -442,11 +457,11 @@ class GoogleController
                     sleep(0.6); // Prevent overloading YouTube servers and avoid rate-limiting
 
                 } catch (Google_Service_Exception $e) {
-                    
+
                     $fails++; // Increment fails on Google service error
                     break;
                 } catch (\Exception $e) {
-                   
+
                     $fails++; // Increment fails on general error
                     break;
                 }
@@ -455,7 +470,4 @@ class GoogleController
 
         return $youtubeURIs; // Return the list of YouTube URIs
     }
-
 }
-
-
