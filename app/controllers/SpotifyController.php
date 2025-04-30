@@ -23,10 +23,6 @@ class SpotifyController
         self::$client_secret = $_ENV['SPOTIFY_CLIENT_SECRET'];
 
         if (session_status() === PHP_SESSION_NONE) {
-            ini_set('session.gc_maxlifetime', 3600);
-            $session_lifetime = 3600; // 1 hour
-            session_set_cookie_params($session_lifetime);
-            
             session_start();
         }
     }
@@ -63,6 +59,10 @@ class SpotifyController
     {
 
         self::startSession();
+        
+        session_destroy();
+        session_unset(); // Clear any existing session data
+        
 
         $session = new SpotifyWebAPI\Session(
             self::$client_id,
@@ -105,6 +105,8 @@ class SpotifyController
 
         if ($state !== $storedState) {
             // The state returned isn't the same as the one we've stored, we shouldn't continue
+            // This is a security measure to prevent CSRF attacks
+
             die('State mismatch');
         }
 
