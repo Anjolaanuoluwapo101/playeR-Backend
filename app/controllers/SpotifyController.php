@@ -4,6 +4,7 @@ namespace app\Controllers;
 
 use SpotifyWebAPI;
 use SpotifyWebAPI\SpotifyWebAPIException;
+use app\Controllers\PlayeRController;
 
 
 class SpotifyController
@@ -54,7 +55,7 @@ class SpotifyController
         }
 
         // No tokens, authenticate the user
-        self::login();
+        return self::login();
     }
 
 
@@ -84,8 +85,7 @@ class SpotifyController
         ];
 
         // Redirect to Spotify's authorization page
-        header('Location: ' . $session->getAuthorizeUrl($options));
-        die();
+        return header('Location: ' . $session->getAuthorizeUrl($options));
     }
 
     public static function getUserAccessToken()
@@ -117,7 +117,7 @@ class SpotifyController
         // Store the access and refresh tokens somewhere. In a session for example
         $_SESSION['spotify_access_token'] = $accessToken;
         $_SESSION['spotify_refresh_token'] = $refreshToken;
-        $_SESSION['spotify_token_expiration'] = time() + 3500;
+        $_SESSION['spotify_token_expiration'] = $session->getTokenExpiration();
 
         if (isset($_SESSION['spotify_original_uri']) && $_SESSION['spotify_original_uri'] == '/spotify/login') {
             $original_uri = $_SESSION['spotify_original_uri'];
@@ -125,6 +125,7 @@ class SpotifyController
             header('Location:' . $original_uri);
         } else {
             header('Location:https://player-frp1.onrender.com/redirectSpotifyLogin?setCookie=playeRCookieSF&tokenTime='.$_SESSION['spotify_token_expiration']);
+            // header('Location:https://player-frp1.onrender.com/redirectSpotifyLogin?setCookie=playeRCookieSF&tokenTime='.$_SESSION['spotify_token_expiration']);
         }
 
     }
@@ -142,7 +143,7 @@ class SpotifyController
 
             $_SESSION['spotify_access_token'] = $session->getAccessToken();
             $_SESSION['spotify_refresh_token'] = $session->getRefreshToken() ?? $refreshToken; // Use existing refresh token if not updated
-            $_SESSION['spotify_token_expiration'] = time() + $session->getExpiresIn();
+            $_SESSION['spotify_token_expiration'] = $session->getTokenExpiration();
 
             return $_SESSION['spotify_access_token'];
         } catch (SpotifyWebAPI\SpotifyWebAPIException $e) {
@@ -203,17 +204,14 @@ class SpotifyController
 
         if (!isset($_GET['spotify_playlist_id']) || empty($_GET['spotify_playlist_id'])) {
             if ($playlistID == null) {
-                echo "Playlist ID empty!";
+                echo "Playlist ID empty! \n Please provide a valid Spotify playlist ID.";
                 return false;
-            }else{
-                $playlistID = $playlistID;
             }
         } else {
             $playlistID = $_GET['spotify_playlist_id'];
         }
 
         $accessToken = self::auth();
-
 
         if (!$accessToken) {
             return false;
@@ -222,7 +220,7 @@ class SpotifyController
         $api = new SpotifyWebAPI\SpotifyWebAPI();
         $api->setAccessToken($accessToken);
 
-        $response = $api->getPlaylist($playlistID, [
+        $response = $api->getPlaylist($playlistID  , [
             'fields' => 'tracks.items(track(name,href,artists(name,href)))'
         ]);
 
@@ -290,16 +288,22 @@ class SpotifyController
     // Function to extract the playlist ID from a valid Spotify playlist link
     public static function extractPlaylistIDFromSpotifyLink($url)
     {
-        // Regex to match Spotify playlist URL
-        // $pattern = "/^https:\/\/open\.spotify\.com\/playlist\/([a-zA-Z0-9]{22})\?si=[a-zA-Z0-9]{22}$/";
-        $pattern = "/^https:\/\/open\.spotify\.com\/playlist\/([a-zA-Z0-9]+)(\?.*)?$/";
-
-
-        if (preg_match($pattern, $url, $matches)) {
-            return $matches[1]; // Return the extracted playlist ID
-        } else {
-            return false; // Return false if the URL is not valid
+        // Extract the substring between 'playlist/' and '?si='
+        $start = strpos($url, 'playlist/');
+        if ($start === false) {
+            return false;
         }
+        $start += strlen('playlist/');
+
+        $end = strpos($url, '?si=', $start);
+        if ($end === false) {
+            // If '?si=' not found, extract till end of string
+            $playlistId = substr($url, $start);
+        } else {
+            $playlistId = substr($url, $start, $end - $start);
+        }
+
+        return $playlistId;
     }
 
     public static function getSpotifyURIsOfRandomPlaylist(array $playlist)
@@ -315,9 +319,9 @@ class SpotifyController
 
         // Loop through each track in the playlist
         foreach ($playlist as $item) {
-            $track = $item['track'];
+            $track = PlayeRController::sanitizeTrackName($item['track']);
             $artist = $item['artist'];
-            $query = "track:\"$track\" artist:\"$artist\"";  // Search query
+            $query = urlencode("$track $artist");  // Search query
 
             $options = [
                 'limit' => 1,

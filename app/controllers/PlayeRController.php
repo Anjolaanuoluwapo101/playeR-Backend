@@ -97,7 +97,6 @@ class PlayeRController
     {
         $spotifyInstance = self::getSpotifyInstance();
         $googleInstance = self::getGoogleInstance();
-
         $spotifyPlaylist = $spotifyInstance::loadPlaylistItem($playlistID);
         self::$numberOfTracks = count($spotifyPlaylist);
 
@@ -105,14 +104,14 @@ class PlayeRController
         $youtube = new Google_Service_YouTube($client);
 
         foreach ($spotifyPlaylist as $item) {
-            $track = $item['track'];
+            $track = self::sanitizeTrackName($item['track']);
             $artist = $item['artist'];
 
             $retries = 0;
             $success = false;
 
             // Build the query
-            $query = urlencode($track . " " . $artist);
+            $query = urlencode($artist . " " . $track);
 
             // Perform the search
             while ($retries <= self::$maxRetries && !$success) {
@@ -157,7 +156,6 @@ class PlayeRController
     {
         $googleInstance = self::getGoogleInstance();
         $spotifyInstance = self::getSpotifyInstance();
-
         $youtubePlaylist = $googleInstance::loadPlaylistItem($playlistId); //fetches an array of associative arrays,each assoc arrays  of the track and  artists
         self::$numberOfTracks = count($youtubePlaylist);
 
@@ -165,9 +163,11 @@ class PlayeRController
 
         // Loop through each track in the playlist
         foreach ($youtubePlaylist as $item) {
-            $track = $item['track'];
+            $track = self::sanitizeTrackName($item['track']);
             $artist = $item['artist'];
-            $query = "track:\"$track\" artist:\"$artist\"";
+            $query = urlencode("$track $artist");  // Search query
+            // $query = "artist: $artist track: $track"; // Build the query for Spotify search
+            // $query = "$artist - $track"; // Build the query for Spotify search
             $options = [
                 'limit' => 1,
                 'offset' => 0,
@@ -409,7 +409,9 @@ class PlayeRController
 
             // Load playlists for comparison
             $originalPlaylistData = $spotifyInstance::loadPlaylistItem($existingSpotifyPlaylist);
+            // var_dump($originalPlaylistData);
             $updatedPlaylistData = $googleInstance::loadPlaylistItem($youtubePlaylistID);
+            // var_dump($updatedPlaylistData);
 
             $response = self::comparePlaylists($originalPlaylistData, $updatedPlaylistData);
             $deletedTracks = $response['deletedTracks'] ?? null;
@@ -463,5 +465,39 @@ class PlayeRController
             $_SESSION['output']['result'] = ["status" => 0, "message" => $e->getMessage()];
             echo json_encode($_SESSION['output']);
         }
+    }
+
+    /**
+     * Sanitize a track name by removing unwanted words, special characters, and bracketed content.
+     * 
+     * @param string $trackName The original track name.
+     * @param array $removeWords Optional list of words to remove (case-insensitive).
+     * @return string The sanitized track name.
+     */
+    public static function sanitizeTrackName(string $trackName, array $removeWords = ['video', 'official', 'visualizer', 'audio', 'remix', 'refix']): string
+    {
+        // Convert to lowercase
+        $sanitized = mb_strtolower($trackName, 'UTF-8');
+
+        // Remove brackets and any content inside (including nested brackets)
+        // This regex removes (), [], {} and their content
+        $sanitized = preg_replace('/\s*[\(\[\{][^)\]\}]*[\)\]\}]\s*/u', ' ', $sanitized);
+
+        // Remove unwanted words dynamically
+        foreach ($removeWords as $word) {
+            // Remove whole word matches, case-insensitive
+            $sanitized = preg_replace('/\b' . preg_quote($word, '/') . '\b/iu', '', $sanitized);
+        }
+
+        // Remove special characters except spaces and alphanumeric
+        $sanitized = preg_replace('/[^a-z0-9\s]/u', '', $sanitized);
+
+        // Replace multiple spaces with a single space
+        $sanitized = preg_replace('/\s+/', ' ', $sanitized);
+
+        // Trim leading and trailing spaces
+        $sanitized = trim($sanitized);
+
+        return $sanitized;
     }
 }

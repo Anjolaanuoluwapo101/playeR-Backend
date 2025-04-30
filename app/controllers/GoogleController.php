@@ -9,16 +9,14 @@ use Google_Service_YouTube_Playlist;
 use Google_Service_YouTube_PlaylistSnippet;
 use Google_Service_YouTube_PlaylistStatus;
 
+use app\Controllers\PlayeRController;
 
 class GoogleController
 {
     public static function startSession()
     {
         if (session_status() === PHP_SESSION_NONE) {
-            ini_set('session.gc_maxlifetime', 3600);
-            $session_lifetime = 3600; // 1 hour
-            session_set_cookie_params($session_lifetime);
-
+            // ini_set('session.gc_maxlifetime', 3600);
             session_start();
         }
     }
@@ -27,28 +25,59 @@ class GoogleController
     {
         self::startSession();
 
-        $params = [
-            'client_id' => $_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID'],
-            'redirect_uri' => 'https://player-backend-qz31.onrender.com/youtube/login',
-            'response_type' => 'code',
-            'scope' => 'https://www.googleapis.com/auth/youtube',
-            'access_type' => 'offline',
-            'prompt' => 'consent'
-        ];
+        // Check if user has a valid token in session
+        if (!empty($_SESSION['youtube_token'])) {
+            // var_dump($_SESSION['youtube_token']);
+            $client = new Google_Client();
+            $client->setClientId($_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID']);
+            $client->setClientSecret($_ENV['GOOGLE_CLIENT_SECRET'] ?? $_SERVER['GOOGLE_CLIENT_SECRET']);
+            $client->setRedirectUri('https://player-backend-qz31.onrender.com/youtube/login');
+            $client->addScope('https://www.googleapis.com/auth/youtube');
+            $client->setAccessType('offline');
+            $client->setPrompt('consent');
 
-        $authUrl = "https://accounts.google.com/o/oauth2/auth?" . http_build_query($params);
+            $client->setAccessToken($_SESSION['youtube_token']['access_token']);
+            if ($client->isAccessTokenExpired()) {
+            // if ((intval($_SESSION['youtube_token']['created']) + intval($_SESSION['youtube_token']['expires_in'])) < time() ) {
+                if (isset($_SESSION['youtube_token']['refresh_token'])) {
+                    $refreshToken = $_SESSION['youtube_token']['refresh_token'];
+                    $newToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
+                    
+                    if (!isset($newToken['error'])) {
+                        // Merge new token with refresh token if missing
+                        if (!isset($newToken['refresh_token'])) {
+                            $newToken['refresh_token'] = $refreshToken;
+                        }
+                        $_SESSION['youtube_token'] = $newToken;
+                        $client->setAccessToken($newToken['access_token']);
+                        return header('Location:https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime=' . ($_SESSION['youtube_token']['created']  + $_SESSION['youtube_token']['expires_in']));
+                        
+
+                    }
+                }
+            } else {
+                // Token is valid, no need to redirect
+                return header('Location:https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime=' . ($_SESSION['youtube_token']['created'] + $_SESSION['youtube_token']['expires_in']));
+            }
+        }
+
+        // If no valid token, proceed with auth URL redirect
+        $client = new Google_Client();
+        $client->setClientId($_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID']);
+        $client->setClientSecret($_ENV['GOOGLE_CLIENT_SECRET'] ?? $_SERVER['GOOGLE_CLIENT_SECRET']);
+        $client->setRedirectUri('https://player-backend-qz31.onrender.com/youtube/login');
+        $client->addScope('https://www.googleapis.com/auth/youtube');
+        $client->setAccessType('offline');
+        $client->setPrompt('consent');
+
+        $authUrl = $client->createAuthUrl();
 
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
         // Store redirect URI dynamically
         $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
-            ? "https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT"
+            ? "https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime="
             : $_SERVER['REQUEST_URI'];
-
-        // $_SESSION['youtube_original_uri'] = ($path == '/youtube/auth')
-        //     ? "/youtube/auth"
-        //     : $_SERVER['REQUEST_URI'];
-
 
         header("Location: $authUrl");
         exit;
@@ -62,36 +91,29 @@ class GoogleController
             die('Authorization code missing.');
         }
 
-        $postData = [
-            'code' => $_GET['code'],
-            'client_id' => $_ENV['GOOGLE_CLIENT_ID'],
-            'client_secret' =>  $_ENV['GOOGLE_CLIENT_SECRET'],
-            'redirect_uri' => 'https://player-backend-qz31.onrender.com/youtube/login',
-            'grant_type' => 'authorization_code'
-        ];
+        $client = new Google_Client();
+        $client->setClientId($_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID']);
+        $client->setClientSecret($_ENV['GOOGLE_CLIENT_SECRET'] ?? $_SERVER['GOOGLE_CLIENT_SECRET']);
+        $client->setRedirectUri('https://player-backend-qz31.onrender.com/youtube/login');
+        // $client->setRedirectUri('http://localhost:8001/youtube/login');
+        
 
-        $response = self::makeCurlRequest("https://oauth2.googleapis.com/token", $postData);
-        if (!isset($response['access_token'])) {
-            die('Failed to get access token.');
+        $token = $client->fetchAccessTokenWithAuthCode($_GET['code']);
+
+        if (isset($token['error'])) {
+            die('Failed to get access token: ' . $token['error_description']);
         }
 
-        $_SESSION['youtube_access_token'] = $response['access_token'];
-        $_SESSION['youtube_token_expiration'] = time() + $response['expires_in'];
-        // $_SESSION['youtube_token_expiration'] = time() + 3600;
+        $_SESSION['youtube_token'] = $token;
 
-
-        if (!empty($response['refresh_token'])) {
-            $_SESSION['youtube_refresh_token'] = $response['refresh_token'];
-        }
-
-
-
-        if (isset($_SESSION['youtube_original_uri'])  && $_SESSION['youtube_original_uri'] != "/youtube/auth") {
+        if (isset($_SESSION['youtube_original_uri']) && $_SESSION['youtube_original_uri'] != "/youtube/auth") {
             $original_uri = $_SESSION['youtube_original_uri'];
             unset($_SESSION['youtube_original_uri']);
-            header('Location:' . $original_uri);
+            // var_dump($token);
+
+            return header('Location:'. $original_uri .  ($_SESSION['youtube_token']['created'] + $_SESSION['youtube_token']['expires_in']));
         } else {
-            header('Location:https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime=' . $_SESSION['youtube_token_expiration']);
+            return header('Location:https://player-frp1.onrender.com/redirectYoutubeLogin?setCookie=playeRCookieYT&tokenTime=' . ($_SESSION['youtube_token']['created'] + $_SESSION['youtube_token']['expires_in']));
         }
     }
 
@@ -99,129 +121,94 @@ class GoogleController
     {
         self::startSession();
 
-        if (!isset($_SESSION['youtube_access_token'])) {
+        if (!isset($_SESSION['youtube_token'])) {
             self::auth();
+            exit;
         }
-
-        // Check if the token is expired
-        if (time() >= $_SESSION['youtube_token_expiration']) {
-            if (!isset($_SESSION['youtube_refresh_token'])) {
-                return self::auth(); // No refresh token, force re-authentication
-            }
-
-
-            $postData = [
-                'client_id' => $_ENV['GOOGLE_CLIENT_ID'],
-                'client_secret' =>  $_ENV['GOOGLE_CLIENT_SECRET'],
-                'refresh_token' => $_SESSION['youtube_refresh_token'],
-                'grant_type' => 'refresh_token',
-            ];
-
-            $response = self::makeCurlRequest("https://oauth2.googleapis.com/token", $postData);
-            if (!isset($response['access_token'])) {
-                return self::auth(); // Failed to refresh, force re-auth
-            }
-
-            $_SESSION['youtube_access_token'] = $response['access_token'];
-            $_SESSION['youtube_token_expiration'] = time() + $response['expires_in'];
-
-            // Refresh token usually remains the same, but update it if needed
-            if (!empty($response['refresh_token'])) {
-                $_SESSION['youtube_refresh_token'] = $response['refresh_token'];
-            }
-        }
-
-        // $client = new Google_Client();
-        // // $client->setAuthConfig($_SERVER['DOCUMENT_ROOT'] . '/client_secret.json');
-        // $client->setAuthConfig(`{"web":{"client_id":"","project_id":"playerr-449906","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"","javascript_origins":["http://localhost:8000","https://player-backend-qz31.onrender.com"]}}`);
-        // $client->setAccessToken($_SESSION['youtube_access_token']);
-
         $client = new Google_Client();
+        $client->setClientId($_ENV['GOOGLE_CLIENT_ID'] ?? $_SERVER['GOOGLE_CLIENT_ID']);
+        $client->setClientSecret($_ENV['GOOGLE_CLIENT_SECRET'] ?? $_SERVER['GOOGLE_CLIENT_SECRET']);
+        $client->setRedirectUri('https://player-backend-qz31.onrender.com/youtube/login');
+        $client->addScope('https://www.googleapis.com/auth/youtube');
+        $client->setAccessType('offline');
+        $client->setPrompt('consent');
 
-        // Define the file path for the client secret JSON
-        $clientSecretFilePath = $_SERVER['DOCUMENT_ROOT'] . '/client_secret.json';
+        $client->setAccessToken($_SESSION['youtube_token']['access_token']);
 
-        // Check if the file exists, and if not, create it
-        if (!file_exists($clientSecretFilePath)) {
-            $clientSecretJson = '{"web":{"client_id":"'.$_ENV['GOOGLE_CLIENT_ID'].'","project_id":"playerr-449906","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"'.$_ENV['GOOGLE_CLIENT_SECRET'].'","javascript_origins":["http://localhost:8000","https://player-backend-qz31.onrender.com"]}}';
 
-            // Write the JSON string to the file
-            file_put_contents($clientSecretFilePath, $clientSecretJson);
+        if ($client->isAccessTokenExpired()) {
+            if (isset($_SESSION['youtube_token']['refresh_token'])) {
+                $refreshToken = $_SESSION['youtube_token']['refresh_token'];
+                $newToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
+
+                if (isset($newToken['error'])) {
+                    // Refresh failed, force re-authentication
+                    return self::auth();
+                    // exit;
+                }
+
+                // Merge new token with refresh token if missing
+                if (!isset($newToken['refresh_token'])) {
+                    $newToken['refresh_token'] = $refreshToken;
+                }
+
+                $_SESSION['youtube_token'] = $newToken;
+                $client->setAccessToken($newToken['access_token']);
+            } else {
+                // No refresh token, force re-authentication
+                return self::auth();
+                // exit;
+            }
         }
-
-        // Pass the file path to setAuthConfig
-        $client->setAuthConfig($clientSecretFilePath);
-        $client->setAccessToken($_SESSION['youtube_access_token']);
-
 
         return $client;
     }
 
-    private static function getChannelId($accessToken)
-    {
-        $response = self::makeCurlRequest(
-            "https://www.googleapis.com/youtube/v3/channels?part=id&mine=true",
-            [],
-            $accessToken
-        );
-
-        return $response['items'][0]['id'] ?? null;
-    }
-
-    private static function makeCurlRequest($url, $postData = [], $accessToken = null)
-    {
-        $ch = curl_init($url);
-
-        $headers = ['Content-Type: application/x-www-form-urlencoded'];
-        if ($accessToken) {
-            $headers[] = "Authorization: Bearer $accessToken";
-        }
-
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-        if (!empty($postData)) {
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-        }
-
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        return json_decode($response, true);
-    }
-
-
-
-
-
-
-
-
-
 
     public static function isYoutubePlaylistLink($url)
     {
-        return preg_match('/^https:\/\/music\.youtube\.com\/playlist\?list=[\w-]+/', $url) === 1;
-    }
+        // return preg_match('/^https:\/\/music\.youtube\.com\/playlist\?list=[\w-]+/', $url) === 1;
 
-    public static function extractPlaylistIDFromYoutubeLink(string $playlistURL)
-    {
-        parse_str(parse_url($playlistURL, PHP_URL_QUERY), $queryParams);
-        $playlistId = $queryParams['list'] ?? null;
+        parse_str(parse_url($url, PHP_URL_QUERY), $params);
 
-        if (!$playlistId) {
-            return false;
+        // Check if both 'list' and 'si' exist
+        if (isset($params['list']) && isset($params['si'])) {
+            return true;
         } else {
-            return $playlistId;
+            return false;
         }
     }
 
+    // public static function extractPlaylistIDFromYoutubeLink(string $playlistURL)
+    // {
+    //     parse_str(parse_url($playlistURL, PHP_URL_QUERY), $queryParams);
+    //     $playlistId = $queryParams['list'] ?? null;
+
+    //     if (!$playlistId) {
+    //         return false;
+    //     } else {
+    //         return $playlistId;
+    //     }
+    // }
+
+    public static function extractPlaylistIDFromYoutubeLink($playlistURL)
+    {
+        // Regex to match Spotify playlist URL
+        // $pattern = "/^https:\/\/open\.spotify\.com\/playlist\/([a-zA-Z0-9]{22})\?si=[a-zA-Z0-9]{22}$/";
+        // $pattern = "/^https:\/\/open\.spotify\.com\/playlist\/([a-zA-Z0-9]+)(\?.*)?$/";
+        $pattern = '/list=([^&]+)/';
+
+        if (preg_match($pattern, $playlistURL, $matches)) {
+            return $matches[1]; // Return the extracted playlist ID
+        } else {
+            return false; // Return false if the URL is not valid
+        }
+    }
 
     public static function loadPlaylists()
     {
-
         $client = self::getUser();
+        
 
         $youtube = new Google_Service_YouTube($client);
 
@@ -230,7 +217,6 @@ class GoogleController
                 'mine' => true,
                 'maxResults' => 10
             ]);
-
 
             // foreach ($playlistsResponse['items'] as $playlist) {
             //     echo "Playlist: " . $playlist['snippet']['title'] . " (ID: " . $playlist['id'] . ")<br>";
@@ -244,7 +230,7 @@ class GoogleController
     {
         if (!isset($_GET['youtube_playlist_id']) || empty($_GET['youtube_playlist_id'])) {
             if ($playlistID == null) {
-                echo "Playlist ID empty!";
+                echo "Playlist ID empty! \n Please provide a valid playlist ID.";
                 return false;
             }
         } else {
@@ -285,9 +271,7 @@ class GoogleController
 
     public static function createPlaylist()
     {
-
         self::startSession();
-
 
         $name = $_GET['name'] ?? 'new_playlist';
         $description = $_GET['description'] ?? 'created by playeR2';
@@ -377,7 +361,6 @@ class GoogleController
                     'rate_limited' => $rateLimited,
                 ];
 
-
                 sleep($rateLimitDelay); // Wait before the next request to avoid rate-limiting
             }
         }
@@ -391,7 +374,6 @@ class GoogleController
         ];
     }
 
-
     public static function getYoutubeURIsOfRandomPlaylist(array $playlist)
     {
         $numberOfTracks = count($playlist); // Count the number of tracks
@@ -403,17 +385,15 @@ class GoogleController
         $client = GoogleController::getUser();
         $youtube = new Google_Service_YouTube($client);
 
-
-
         foreach ($playlist as $item) {
-            $track = $item['track'];
+            $track = PlayeRController::sanitizeTrackName($item['track']);
             $artist = $item['artist'];
 
             $retries = 0;
             $success = false;
 
             // Build the query
-            $query = urlencode($track . " " . $artist);
+            $query = urlencode($artist . " " . $track);
 
             // Perform the search
             while ($retries < $maxRetries && !$success) {
@@ -436,32 +416,13 @@ class GoogleController
                         $fails++; // Increment fails if no video is found
                     }
 
-
-                    // // If a video is found, add the video ID to the URIs array
-                    // if (isset($searchResponse['items'][0])) {
-                    //     $music = $searchResponse['items'][0]['id']['videoId']; // This is the unique identifier
-                    //     $youtubeURIs[] = $music;
-                    //     $success = true; // Mark as success
-                    // } else {
-                    //     $fails++; // Increment fails if no video is found
-                    // }
-
-                    // Progress update
                     $left = $numberOfTracks - (count($youtubeURIs) + $fails);
-                    // echo json_encode([
-                    //     "progress" => count($youtubeURIs),
-                    //     "left" => $left,
-                    //     "fails" => $fails,
-                    //     "uris" => $youtubeURIs
-                    // ]); // Progress report
                     sleep(0.6); // Prevent overloading YouTube servers and avoid rate-limiting
 
                 } catch (Google_Service_Exception $e) {
-
                     $fails++; // Increment fails on Google service error
                     break;
                 } catch (\Exception $e) {
-
                     $fails++; // Increment fails on general error
                     break;
                 }
