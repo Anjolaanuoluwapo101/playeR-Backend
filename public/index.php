@@ -1,5 +1,5 @@
 <?php
-header("Access-Control-Allow-Origin: https://player-frp1.onrender.com"); // Allow all domains (Use specific domains in production)
+header("Access-Control-Allow-Origin: http://localhost:8081"); // Allow all domains (Use specific domains in production)
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS"); // Allowed methods
 header("Access-Control-Allow-Credentials:true");
 header("Content-Type: application/json");
@@ -8,8 +8,8 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, Access-Contro
 
 require '../vendor/autoload.php';
 
-// $dotenv = Dotenv\Dotenv::createImmutable(__DIR__."/../" ,".env");
-// $dotenv->load();
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__."/" ,".env");
+$dotenv->load();
 
 require '../core/Router.php';
 require '../app/controllers/PlayeRController.php';
@@ -28,6 +28,20 @@ use app\Controllers\PlayeRController;
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
+}
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => 'localhost',
+        'secure' => false,
+        'httponly' => true,
+        'samesite' => 'None'
+    ]);
+    session_start();
+}else{
+    die("session mismatch");
 }
 
 
