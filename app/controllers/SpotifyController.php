@@ -19,8 +19,8 @@ class SpotifyController
     public static function startSession()
     {
         
-        self::$client_id = $_ENV['SPOTIFY_CLIENT_ID'] ;
-        self::$client_secret = $_ENV['SPOTIFY_CLIENT_SECRET'];
+        self::$client_id =  $_SERVER['SPOTIFY_CLIENT_ID'] ?? $_ENV['SPOTIFY_CLIENT_ID']; ;
+        self::$client_secret =  $_SERVER['SPOTIFY_CLIENT_SECRET'] ?? $_ENV['SPOTIFY_CLIENT_SECRET']; ;
 
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -59,7 +59,7 @@ class SpotifyController
     {
 
         self::startSession();
-        
+
         session_destroy();
         session_unset(); // Clear any existing session data
         
