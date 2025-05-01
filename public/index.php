@@ -15,14 +15,12 @@ require '../core/Router.php';
 require '../app/controllers/PlayeRController.php';
 require '../app/controllers/SpotifyController.php';
 require '../app/controllers/GoogleController.php';
-// require '../app/controllers/GeminiController.php';
 require '../app/models/Model.php';
 require '../app/models/User.php';
 
 use app\Controllers\SpotifyController;
 use app\Controllers\GoogleController;
 use app\Controllers\PlayeRController;
-// use app\Controllers\GeminiController;
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -30,28 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'domain' => 'localhost',
-        'secure' => false,
-        'httponly' => true,
-        'samesite' => 'None'
-    ]);
-    session_start();
-}else{
-    die("session mismatch");
-}
-
 
 
 Router::get('/spotify/login', function() {
     SpotifyController::login();
 });
-Router::get('/spotify/check_user', function() {
-    SpotifyController::checkUser();
+
+Router::get('/refresh/session', function() {
+    
 });
+
 Router::get('/spotify/get_user_access_token', function() {
     SpotifyController::getUserAccessToken();
 });
@@ -72,9 +58,6 @@ Router::get('/youtube/auth', function() {
 });
 Router::get('/youtube/login', function() {
     GoogleController::login();
-});
-Router::get('/youtube/check_user', function() {
-    GoogleController::checkUser();
 });
 Router::get('/youtube/load_playlists', function() {
     GoogleController::loadPlaylists();
@@ -97,13 +80,5 @@ Router::get('/player/convertSpotifyToYoutube' , function(){
     PlayeRController::spotifyToYoutube();
 });
 
-
-//Gemini
-Router::get('/gemini/ask' , function(){
-    //Gemini class not static in nature,so let's initialize it
-    $gemini = new GeminiController;
-    echo $gemini->generateText("What's your name?");
-
-});
 
 Router::dispatch();

@@ -60,10 +60,6 @@ class SpotifyController
 
         self::startSession();
 
-        session_destroy();
-        session_unset(); // Clear any existing session data
-        
-
         $session = new SpotifyWebAPI\Session(
             self::$client_id,
             self::$client_secret,
